@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WhisperMatch</title>
+<meta name="description" content="Meet someone new. Say what you mean. Get paired with another person and chat in real time.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #edf0f5; --surface: #fbfcfe; --surface-2: #e1e6ef; --ink: #1a2033; --muted: #646d84;
+    --line: #d3d9e5; --accent: #c2415a; --accent-ink: #ffffff; --danger: #b3261e;
+    --font-display: 'Bricolage Grotesque', 'Trebuchet MS', system-ui, sans-serif;
+    --font-body: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #11141d; --surface: #1a1f2d; --surface-2: #252c3f; --ink: #e9ecf4; --muted: #8f98b0;
+      --line: #2b3347; --accent: #ff7d96; --accent-ink: #2a0c14; --danger: #ff8a80; color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.45;
+    padding-block: 12px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  [hidden] { display: none !important; }
+  #app { height: 100%; max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; }
+  .view { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .wordmark { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.02em; font-size: 22px; }
+  .wordmark i { font-style: normal; color: var(--accent); }
+  .top { display: flex; justify-content: space-between; align-items: center; padding: 6px 0 18px; }
+  h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(34px, 9vw, 46px); line-height: 1.02; letter-spacing: -0.03em; margin: 0 0 12px; text-wrap: balance; }
+  h2 { font-family: var(--font-display); font-weight: 700; font-size: 26px; letter-spacing: -0.02em; margin: 0 0 6px; text-wrap: balance; }
+  p { margin: 0 0 14px; }
+  .lede { color: var(--muted); max-width: 44ch; }
+  .label { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin: 0 0 8px; display: block; }
+  .stack { display: flex; flex-direction: column; gap: 14px; }
+  .center { flex: 1; display: flex; flex-direction: column; justify-content: center; padding-bottom: 8vh; }
+  input[type="text"], input[type="email"], input[type="password"], textarea {
+    width: 100%; font: inherit; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 12px; padding: 13px 14px;
+  }
+  textarea { resize: none; max-height: 120px; }
+  ::placeholder { color: var(--muted); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button { font: inherit; cursor: pointer; }
+  .btn { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; padding: 14px 18px; font-weight: 600; width: 100%; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn.quiet { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .link { background: none; border: 0; color: var(--muted); padding: 6px 0; text-decoration: underline; text-underline-offset: 3px; }
+  details { border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; color: var(--muted); font-weight: 500; }
+  details .stack { margin-top: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+  .chip { background: var(--surface); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 8px 15px; font-weight: 500; }
+  .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .notice { background: var(--surface-2); border-radius: 12px; padding: 12px 14px; font-size: 14px; }
+  .error { color: var(--danger); font-size: 14px; margin: 0; }
+  .rings { position: relative; width: 150px; height: 150px; margin: 0 auto 28px; }
+  .rings span { position: absolute; inset: 0; border: 2px solid var(--accent); border-radius: 50%; opacity: 0; animation: ring 3.2s ease-out infinite; }
+  .rings span:nth-child(2) { animation-delay: 1.05s; }
+  .rings span:nth-child(3) { animation-delay: 2.1s; }
+  .rings b { position: absolute; inset: 56px; background: var(--accent); border-radius: 50%; }
+  @keyframes ring { 0% { transform: scale(0.35); opacity: 0.9; } 100% { transform: scale(1); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .rings span { animation: none; opacity: 0.35; } .rings span:nth-child(2) { transform: scale(0.7); } .rings span:nth-child(3) { transform: scale(0.45); } }
+  .listening { text-align: center; }
+  .listening .lede { margin-inline: auto; }
+  .chat-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 6px 0 12px; border-bottom: 1px solid var(--line); }
+  .chat-head h2 { margin: 0; font-size: 22px; overflow-wrap: anywhere; }
+  .chat-head .sub { color: var(--muted); font-size: 13px; }
+  .leave { background: none; border: 1px solid var(--line); color: var(--danger); border-radius: 10px; padding: 8px 12px; font-weight: 600; flex: none; }
+  #msgs { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 2px; display: flex; flex-direction: column; gap: 6px; }
+  .empty { margin: auto; color: var(--muted); text-align: center; }
+  .row { display: flex; flex-direction: column; max-width: 82%; }
+  .row.mine { align-self: flex-end; align-items: flex-end; }
+  .row.theirs { align-self: flex-start; align-items: flex-start; }
+  .bubble { padding: 9px 14px; border-radius: 18px; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .mine .bubble { background: var(--accent); color: var(--accent-ink); border-bottom-right-radius: 5px; }
+  .theirs .bubble { background: var(--surface-2); border-bottom-left-radius: 5px; }
+  .time { font-size: 11px; color: var(--muted); margin: 2px 4px 0; font-variant-numeric: tabular-nums; }
+  .composer { display: flex; gap: 10px; align-items: flex-end; padding-top: 10px; border-top: 1px solid var(--line); }
+  .composer .btn { width: auto; flex: none; padding: 13px 18px; }
+  .ended { text-align: center; padding-top: 12px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; }
+  .ended p { color: var(--muted); margin: 0; }
+  .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(20px, env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 20; max-width: calc(100% - 32px); }
+</style>
+</head>
+<body>
+<div id="app">
+  <section id="loading" class="view"><div class="center"><p class="lede" style="text-align:center">Connecting…</p></div></section>
+
+  <section id="setup" class="view" hidden>
+    <div class="top"><div class="wordmark">whisper<i>·</i>match</div></div>
+    <div class="center stack">
+      <h1>Add your Firebase config.</h1>
+      <p class="lede">Open <code>index.html</code>, find <code>firebaseConfig</code> near the bottom, and replace the placeholder values with the ones from your Firebase web app. Then reload.</p>
+    </div>
+  </section>
+
+  <section id="welcome" class="view" hidden>
+    <div class="top"><div class="wordmark">whisper<i>·</i>match</div></div>
+    <div class="center stack">
+      <h1>Meet someone new. Say what you mean.</h1>
+      <p class="lede">Pick a nickname, tell us what you like, and we'll pair you with another person who's looking right now.</p>
+      <div>
+        <label class="label" for="nick">Nickname</label>
+        <input id="nick" type="text" maxlength="20" placeholder="What should they call you?" autocomplete="off">
+      </div>
+      <button id="guest" class="btn">Continue as guest</button>
+      <details>
+        <summary>Or use an email account</summary>
+        <div class="stack">
+          <input id="email" type="email" placeholder="Email" autocomplete="email">
+          <input id="password" type="password" placeholder="Password (6+ characters)" autocomplete="current-password">
+          <button id="signin" class="btn quiet">Sign in</button>
+          <button id="signup" class="btn quiet">Create account with this nickname</button>
+        </div>
+      </details>
+      <p id="authError" class="error" hidden role="alert"></p>
+    </div>
+  </section>
+
+  <section id="home" class="view" hidden>
+    <div class="top">
+      <div class="wordmark">whisper<i>·</i>match</div>
+      <button id="signout" class="link">Sign out</button>
+    </div>
+    <div class="center">
+      <h2 id="hello">Hi</h2>
+      <p class="lede">Choose a few interests and we'll try to pair you with someone who shares them. Skip this if you like surprises.</p>
+      <span class="label">Interests</span>
+      <div id="chips" class="chips"></div>
+      <button id="find" class="btn">Find a match</button>
+      <button id="rename" class="link" style="margin-top:10px">Change nickname</button>
+    </div>
+  </section>
+
+  <section id="searching" class="view" hidden>
+    <div class="top"><div class="wordmark">whisper<i>·</i>match</div></div>
+    <div class="center listening">
+      <div class="rings" aria-hidden="true"><span></span><span></span><span></span><b></b></div>
+      <h2>Listening for your match…</h2>
+      <p class="lede">Keep this page open. You'll drop into the chat the moment someone else starts looking.</p>
+      <button id="cancel" class="btn quiet" style="max-width:220px;margin:6px auto 0">Cancel</button>
+    </div>
+  </section>
+
+  <section id="chat" class="view" hidden>
+    <div class="chat-head">
+      <div style="min-width:0">
+        <h2 id="partner">Your match</h2>
+        <div id="shared" class="sub"></div>
+      </div>
+      <button id="leave" class="leave">Leave</button>
+    </div>
+    <div id="msgs" aria-live="polite"></div>
+    <form id="composer" class="composer">
+      <textarea id="text" rows="1" maxlength="1000" placeholder="Type a message"></textarea>
+      <button id="send" class="btn" type="submit">Send</button>
+    </form>
+    <div id="ended" class="ended" hidden>
+      <p id="endedText"></p>
+      <button id="home2" class="btn">Back to home</button>
+    </div>
+  </section>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+// TODO: replace with the values from Firebase console -> Project settings -> Your apps -> Web app.
+var firebaseConfig = {
+  apiKey: 'AIzaSyA422Kj_U472AUnFn0goUWGoN1rsddTCX8',
+  authDomain: 'whispermatch-9e668.firebaseapp.com',
+  projectId: 'whispermatch-9e668',
+  storageBucket: 'whispermatch-9e668.firebasestorage.app',
+  messagingSenderId: '137433120241',
+  appId: '1:137433120241:web:feae6a11ef472d40045850'
+};
+
+(function () {
+  var INTERESTS = ['Music', 'Movies', 'Gaming', 'Books', 'Fitness', 'Travel', 'Tech', 'Food', 'Art', 'Anime'];
+  var STALE_MS = 90000, HEARTBEAT_MS = 30000;
+  var VIEWS = ['loading', 'setup', 'welcome', 'home', 'searching', 'chat'];
+  var $ = function (id) { return document.getElementById(id); };
+  function show(name) { VIEWS.forEach(function (v) { $(v).hidden = v !== name; }); }
+
+  if (firebaseConfig.apiKey === 'YOUR_API_KEY') { show('setup'); return; }
+
+  firebase.initializeApp(firebaseConfig);
+  var auth = firebase.auth(), db = firebase.firestore(), TS = firebase.firestore.FieldValue.serverTimestamp;
+
+  var uid = null, isAnon = true, nick = '', interests = [];
+  var searching = false, creating = false, hb = null, unsubWaiting = null, unsubChats = null, unsubMsgs = null;
+  var chat = null, leaveArmed = null, toastTimer = null;
+
+  function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) {} return null; }
+  function toast(msg) {
+    var old = document.querySelector('.toast'); if (old) old.remove();
+    var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; t.setAttribute('role', 'status');
+    document.body.appendChild(t); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.remove(); }, 3500);
+  }
+  function sharedOf(a, b) { return a.filter(function (x) { return b.indexOf(x) !== -1; }); }
+  function userRef() { return db.doc('users/' + uid); }
+  function setStatus(status, extra) {
+    var d = { status: status, lastSeen: Date.now() };
+    if (extra) for (var k in extra) d[k] = extra[k];
+    return userRef().set(d, { merge: true });
+  }
+  function authMessage(e) {
+    var c = (e && e.code) || '';
+    if (c.indexOf('invalid-email') > -1) return 'That email address looks invalid.';
+    if (c.indexOf('email-already-in-use') > -1) return 'An account with that email already exists.';
+    if (c.indexOf('weak-password') > -1) return 'Password should be at least 6 characters.';
+    if (c.indexOf('invalid-credential') > -1 || c.indexOf('wrong-password') > -1 || c.indexOf('user-not-found') > -1) return 'Incorrect email or password.';
+    if (c.indexOf('operation-not-allowed') > -1) return 'This sign-in method is disabled. Enable it in Firebase Authentication.';
+    if (c.indexOf('unauthorized-domain') > -1) return 'This website address is not authorized in Firebase Authentication settings.';
+    if (c.indexOf('network') > -1) return 'Network error. Check your connection.';
+    return (e && e.message) || 'Something went wrong.';
+  }
+  function authError(msg) { var p = $('authError'); p.hidden = !msg; p.textContent = msg || ''; }
+
+  /* ---------- auth ---------- */
+  function needNick() {
+    var v = $('nick').value.trim();
+    if (!v) { authError('Pick a nickname first.'); $('nick').focus(); return null; }
+    return v;
+  }
+  async function ensureProfile(name) {
+    var snap = await userRef().get();
+    if (snap.exists && !name) { nick = snap.data().nickname || ''; return; }
+    nick = name || ('Guest' + Math.floor(1000 + Math.random() * 9000));
+    await userRef().set({ uid: uid, nickname: nick, interests: [], status: 'idle', lastSeen: Date.now(), isAnonymous: isAnon }, { merge: true });
+  }
+  $('guest').addEventListener('click', async function () {
+    authError(''); var n = needNick(); if (!n) return;
+    try { store('wm_pending_nick', n); await auth.signInAnonymously(); } catch (e) { authError(authMessage(e)); }
+  });
+  $('signup').addEventListener('click', async function () {
+    authError(''); var n = needNick(); if (!n) return;
+    try { store('wm_pending_nick', n); await auth.createUserWithEmailAndPassword($('email').value.trim(), $('password').value); } catch (e) { authError(authMessage(e)); }
+  });
+  $('signin').addEventListener('click', async function () {
+    authError('');
+    try { store('wm_pending_nick', ''); await auth.signInWithEmailAndPassword($('email').value.trim(), $('password').value); } catch (e) { authError(authMessage(e)); }
+  });
+  $('nick').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('guest').click(); });
+  $('signout').addEventListener('click', async function () { try { await setStatus('idle'); } catch (e) {} auth.signOut(); });
+
+  auth.onAuthStateChanged(async function (user) {
+    teardown();
+    if (!user) { uid = null; show('welcome'); return; }
+    uid = user.uid; isAnon = user.isAnonymous;
+    try {
+      var pending = store('wm_pending_nick'); store('wm_pending_nick', '');
+      await ensureProfile(pending || '');
+      try { interests = JSON.parse(store('wm_interests') || '[]'); } catch (e) { interests = []; }
+      if (!Array.isArray(interests)) interests = [];
+      watchChats();
+      goHome();
+    } catch (e) { toast('Could not load your profile. Check your Firestore rules.'); show('welcome'); }
+  });
+
+  function teardown() {
+    stopSearch(false);
+    if (unsubChats) { unsubChats(); unsubChats = null; }
+    if (unsubMsgs) { unsubMsgs(); unsubMsgs = null; }
+    chat = null;
+  }
+
+  /* ---------- home ---------- */
+  function goHome() {
+    $('hello').textContent = 'Hi, ' + nick;
+    renderChips();
+    show('home');
+  }
+  function renderChips() {
+    var box = $('chips'); box.textContent = '';
+    INTERESTS.forEach(function (name) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.textContent = name;
+      b.setAttribute('aria-pressed', interests.indexOf(name) !== -1 ? 'true' : 'false');
+      b.addEventListener('click', function () {
+        var i = interests.indexOf(name);
+        if (i === -1) interests.push(name); else interests.splice(i, 1);
+        store('wm_interests', JSON.stringify(interests));
+        b.setAttribute('aria-pressed', i === -1 ? 'true' : 'false');
+      });
+      box.appendChild(b);
+    });
+  }
+  $('rename').addEventListener('click', function () {
+    var n = window.prompt ? null : null;
+    $('nick').value = nick; show('welcome');
+    // Signed-in users can edit their nickname here; Continue as guest keeps the same account.
+    $('guest').onclick = async function () {
+      var v = $('nick').value.trim(); if (!v) { authError('Pick a nickname first.'); return; }
+      nick = v; try { await userRef().update({ nickname: nick }); } catch (e) {}
+      $('guest').onclick = null; goHome();
+    };
+  });
+
+  /* ---------- matchmaking ---------- */
+  async function startSearch() {
+    if (searching) return;
+    searching = true; creating = false; show('searching');
+    try { await setStatus('waiting', { nickname: nick, interests: interests }); }
+    catch (e) { searching = false; goHome(); toast('Could not start searching. Check your Firestore rules.'); return; }
+    hb = setInterval(function () { setStatus('waiting', { interests: interests }).catch(function () {}); }, HEARTBEAT_MS);
+    unsubWaiting = db.collection('users').where('status', '==', 'waiting').onSnapshot(function (snap) {
+      tryMatch(snap.docs.map(function (d) { return d.data(); }));
+    }, function () {});
+  }
+
+  /* Only the smaller uid creates the chat, with a waiting user whose uid is larger,
+     so a pair never ends up with two chats. */
+  async function tryMatch(list) {
+    if (!searching || creating) return;
+    var now = Date.now();
+    var cands = list.filter(function (u) { return u && u.uid && u.uid > uid && now - (u.lastSeen || 0) < STALE_MS; });
+    if (!cands.length) return;
+    cands.sort(function (a, b) {
+      return sharedOf(b.interests || [], interests).length - sharedOf(a.interests || [], interests).length || a.lastSeen - b.lastSeen;
+    });
+    var p = cands[0]; creating = true;
+    try {
+      var names = {}; names[uid] = nick; names[p.uid] = p.nickname || 'Someone';
+      await db.collection('chats').add({
+        participants: [uid, p.uid], names: names, status: 'active', left: {},
+        shared: sharedOf(p.interests || [], interests), createdAt: TS()
+      });
+    } catch (e) { creating = false; }
+  }
+
+  function stopSearch(writeIdle) {
+    clearInterval(hb); hb = null;
+    if (unsubWaiting) { unsubWaiting(); unsubWaiting = null; }
+    var was = searching; searching = false; creating = false;
+    if (writeIdle && was && uid) setStatus('idle').catch(function () {});
+  }
+  $('find').addEventListener('click', startSearch);
+  $('cancel').addEventListener('click', function () { stopSearch(true); goHome(); });
+  window.addEventListener('pagehide', function () { if (searching && uid) setStatus('idle').catch(function () {}); });
+
+  /* ---------- chats ---------- */
+  function watchChats() {
+    unsubChats = db.collection('chats').where('participants', 'array-contains', uid).onSnapshot(function (snap) {
+      var list = snap.docs.map(function (d) {
+        var x = d.data({ serverTimestamps: 'estimate' }); x.id = d.id;
+        x.created = x.createdAt && x.createdAt.toMillis ? x.createdAt.toMillis() : Date.now();
+        return x;
+      }).filter(function (c) { return !(c.left && c.left[uid]); })
+        .sort(function (a, b) { return a.created - b.created; });
+      onChat(list[0] || null);
+    }, function () {});
+  }
+  function onChat(c) {
+    if (c) {
+      if (searching) stopSearch(false);
+      var isNew = !chat || chat.id !== c.id;
+      chat = c;
+      if (isNew) { setStatus('matched').catch(function () {}); openChat(); }
+      renderChatState();
+    } else if (chat) {
+      chat = null;
+      if (unsubMsgs) { unsubMsgs(); unsubMsgs = null; }
+      setStatus('idle').catch(function () {});
+      goHome();
+    }
+  }
+  function partnerId() { return chat.participants.filter(function (m) { return m !== uid; })[0]; }
+
+  function openChat() {
+    show('chat'); $('msgs').textContent = '';
+    if (unsubMsgs) unsubMsgs();
+    unsubMsgs = db.collection('chats').doc(chat.id).collection('messages').orderBy('createdAt', 'asc').limitToLast(300)
+      .onSnapshot(function (snap) {
+        renderMsgs(snap.docs.map(function (d) {
+          var x = d.data({ serverTimestamps: 'estimate' });
+          return { id: d.id, senderId: x.senderId, text: x.text, ts: x.createdAt && x.createdAt.toMillis ? x.createdAt.toMillis() : Date.now() };
+        }));
+      }, function () {});
+    resetLeave();
+  }
+  function renderChatState() {
+    var pid = partnerId();
+    $('partner').textContent = (chat.names && chat.names[pid]) || 'Your match';
+    var sh = chat.shared || [], ended = chat.status === 'ended';
+    $('shared').textContent = ended ? 'Chat ended' : sh.length ? 'You both like ' + sh.join(', ') : 'Matched. Say hi.';
+    $('composer').hidden = ended; $('ended').hidden = !ended; $('leave').hidden = ended;
+    if (ended) $('endedText').textContent = chat.endedBy === uid ? 'You left the chat.' : ($('partner').textContent + ' left the chat.');
+  }
+  function renderMsgs(list) {
+    var box = $('msgs');
+    var near = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+    box.textContent = '';
+    if (!list.length) {
+      var e = document.createElement('div'); e.className = 'empty'; e.textContent = 'No messages yet. Break the ice.';
+      box.appendChild(e); return;
+    }
+    list.forEach(function (m) {
+      var mine = m.senderId === uid;
+      var row = document.createElement('div'); row.className = 'row ' + (mine ? 'mine' : 'theirs');
+      var bub = document.createElement('div'); bub.className = 'bubble'; bub.textContent = m.text;
+      var t = document.createElement('div'); t.className = 'time';
+      t.textContent = new Date(m.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      row.appendChild(bub); row.appendChild(t); box.appendChild(row);
+    });
+    if (near || list[list.length - 1].senderId === uid) box.scrollTop = box.scrollHeight;
+  }
+
+  $('composer').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    if (!chat || chat.status === 'ended') return;
+    var ta = $('text'), v = ta.value.trim(); if (!v) return;
+    ta.value = ''; ta.style.height = '';
+    try {
+      await db.collection('chats').doc(chat.id).collection('messages').add({ senderId: uid, text: v.slice(0, 1000), createdAt: TS() });
+    } catch (err) { ta.value = v; toast('Message not sent. Try again.'); }
+  });
+  $('text').addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('composer').requestSubmit(); } });
+  $('text').addEventListener('input', function () { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 120) + 'px'; });
+
+  function resetLeave() { clearTimeout(leaveArmed); leaveArmed = null; $('leave').textContent = 'Leave'; }
+  function markLeft() { var o = {}; o['left.' + uid] = true; return db.collection('chats').doc(chat.id).update(o); }
+  $('leave').addEventListener('click', async function () {
+    if (!chat) return;
+    if (!leaveArmed) { $('leave').textContent = 'Tap again to leave'; leaveArmed = setTimeout(resetLeave, 3000); return; }
+    resetLeave();
+    try { await db.collection('chats').doc(chat.id).update({ status: 'ended', endedBy: uid }); await markLeft(); }
+    catch (err) { toast('Could not leave. Try again.'); }
+  });
+  $('home2').addEventListener('click', async function () {
+    if (!chat) return;
+    try { await markLeft(); } catch (err) { toast('Could not go back. Try again.'); }
+  });
+})();
+</script>
+</body>
+</html>
