@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WhisperMatch</title>
+<meta name="description" content="A free anonymous chat room. Open the link, get a random name, say hi.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #edf0f5; --surface: #fbfcfe; --surface-2: #e1e6ef; --ink: #1a2033; --muted: #646d84;
+    --line: #d3d9e5; --accent: #c2415a; --accent-ink: #ffffff; --danger: #b3261e; --nl: 38%;
+    --font-display: 'Bricolage Grotesque', 'Trebuchet MS', system-ui, sans-serif;
+    --font-body: 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #11141d; --surface: #1a1f2d; --surface-2: #252c3f; --ink: #e9ecf4; --muted: #8f98b0;
+      --line: #2b3347; --accent: #ff7d96; --accent-ink: #2a0c14; --danger: #ff8a80; --nl: 72%;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.45;
+    padding-block: 12px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  [hidden] { display: none !important; }
+  #app { height: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; min-height: 0; }
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 4px 0 10px; }
+  .wordmark { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.02em; font-size: 24px; }
+  .wordmark i { font-style: normal; color: var(--accent); }
+  .pill { font-size: 13px; font-weight: 600; background: var(--surface-2); border-radius: 999px; padding: 6px 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .status { background: var(--surface-2); border-radius: 10px; padding: 9px 12px; font-size: 14px; margin-bottom: 8px; }
+  #msgs {
+    flex: 1; min-height: 0; overflow-y: auto; padding: 12px 4px; display: flex; flex-direction: column; gap: 8px;
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  }
+  .empty { margin: auto; text-align: center; color: var(--muted); max-width: 30ch; }
+  .empty b { display: block; font-family: var(--font-display); font-size: 22px; color: var(--ink); margin-bottom: 4px; }
+  .sys { align-self: center; text-align: center; color: var(--muted); font-size: 13px; padding: 2px 8px; }
+  .row { display: flex; flex-direction: column; max-width: 84%; }
+  .row.mine { align-self: flex-end; align-items: flex-end; }
+  .row.theirs { align-self: flex-start; align-items: flex-start; }
+  .who { font-size: 12px; font-weight: 600; margin: 0 6px 2px; }
+  .bubble { padding: 9px 14px; border-radius: 18px; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .mine .bubble { background: var(--accent); color: var(--accent-ink); border-bottom-right-radius: 5px; }
+  .theirs .bubble { background: var(--surface-2); border-bottom-left-radius: 5px; }
+  .time { font-size: 11px; color: var(--muted); margin: 2px 6px 0; font-variant-numeric: tabular-nums; }
+  .tools { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 0 8px; align-items: center; }
+  .chip { font: inherit; font-size: 14px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+  .chip b { color: var(--accent); }
+  .chip:disabled { opacity: 0.5; cursor: not-allowed; }
+  .composer { display: flex; gap: 10px; align-items: flex-end; }
+  textarea { flex: 1; min-width: 0; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; resize: none; max-height: 120px; }
+  ::placeholder { color: var(--muted); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .send { font: inherit; background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 14px; padding: 13px 20px; font-weight: 600; cursor: pointer; }
+  .send:disabled { opacity: 0.5; cursor: not-allowed; }
+  .foot { margin: 8px 0 0; font-size: 12px; color: var(--muted); text-align: center; }
+  .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: max(20px, env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 20; max-width: calc(100% - 32px); }
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="wordmark">whisper<i>·</i>match</div>
+    <span id="online" class="pill">Connecting</span>
+  </header>
+  <div id="status" class="status" role="status">Connecting to the room…</div>
+  <div id="msgs" aria-live="polite"></div>
+  <div class="tools">
+    <button id="shuffle" class="chip" type="button">You are <b id="myname"></b> · shuffle</button>
+    <button id="ice" class="chip" type="button">Icebreaker</button>
+    <button id="roll" class="chip" type="button">Roll dice</button>
+  </div>
+  <form id="composer" class="composer">
+    <textarea id="text" rows="1" maxlength="400" placeholder="Say something to the room" aria-label="Message"></textarea>
+    <button id="send" class="send" type="submit">Send</button>
+  </form>
+  <p class="foot">Everyone here is anonymous and anyone can read this room. Be kind, and don't share personal details. Nothing is saved.</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // One shared room. The first person to open the page "claims" this id and relays messages
+  // for everyone else. If they leave, the next person to notice takes over automatically.
+  var ROOM_ID = 'whispermatch-open-room-v1-7f3k';
+  var ADJ = ['Purple', 'Sleepy', 'Brave', 'Sneaky', 'Cosmic', 'Jolly', 'Velvet', 'Mellow', 'Electric', 'Cheeky', 'Golden', 'Quiet', 'Wobbly', 'Lucky', 'Spicy', 'Frosty'];
+  var ANI = ['Fox', 'Panda', 'Otter', 'Falcon', 'Koala', 'Tiger', 'Gecko', 'Llama', 'Owl', 'Raccoon', 'Dolphin', 'Hedgehog', 'Badger', 'Lynx', 'Moose', 'Penguin'];
+  var STARTERS = [
+    'What is a song you could listen to on repeat for a week?',
+    'Which food would you happily eat every day?',
+    'What is the best thing that happened to you this week?',
+    'Which superpower would you pick, and what would you do first?',
+    'What is a small thing that always makes your day better?',
+    'Would you rather travel to the past or the future?',
+    'What is the last show you binged?',
+    'If you could instantly learn one skill, what would it be?',
+    'What is your most useless talent?',
+    'Which city would you move to tomorrow?'
+  ];
+
+  var $ = function (id) { return document.getElementById(id); };
+  var rand = function () { return Math.random().toString(36).slice(2, 10); };
+  var pick = function (a) { return a[Math.floor(Math.random() * a.length)]; };
+  var clean = function (s, max) { return String(s == null ? '' : s).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, max); };
+  function store(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) {} return null; }
+  var toastTimer = null;
+  function toast(msg) {
+    var old = document.querySelector('.toast'); if (old) old.remove();
+    var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; t.setAttribute('role', 'status');
+    document.body.appendChild(t); clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.remove(); }, 3000);
+  }
+  function hue(s) { var h = 0; for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360; return h; }
+  function randomName() { return pick(ADJ) + ' ' + pick(ANI); }
+
+  var clientId = rand() + rand();
+  var name = clean(store('wm_fun_name'), 24) || randomName();
+  store('wm_fun_name', name);
+
+  var role = null;               // 'host' | 'guest' | null
+  var peer = null, guestConn = null;
+  var recs = [];                 // host only: connected guests
+  var roster = [];               // [{cid, name}]
+  var history = [];              // last messages, handed to people who join
+  var seen = {};
+  var attempt = 0, statusTimer = null;
+
+  /* ---------- UI ---------- */
+  function setStatus(text, autoHideMs) {
+    var el = $('status'); clearTimeout(statusTimer);
+    el.hidden = !text; el.textContent = text || '';
+    if (text && autoHideMs) statusTimer = setTimeout(function () { el.hidden = true; }, autoHideMs);
+  }
+  function updateOnline() {
+    $('online').textContent = role ? (roster.length + (roster.length === 1 ? ' person here' : ' people here')) : 'Connecting';
+    var ready = !!role;
+    $('send').disabled = !ready; $('ice').disabled = !ready; $('roll').disabled = !ready;
+  }
+  function showEmpty() {
+    var box = $('msgs');
+    if (box.children.length) return;
+    var e = document.createElement('div'); e.className = 'empty'; e.id = 'empty';
+    var b = document.createElement('b'); b.textContent = 'It is quiet in here.';
+    e.appendChild(b); e.appendChild(document.createTextNode('Say hi, or tap Icebreaker to get things started.'));
+    box.appendChild(e);
+  }
+  function render(m) {
+    var box = $('msgs');
+    var empty = $('empty'); if (empty) empty.remove();
+    var near = box.scrollHeight - box.scrollTop - box.clientHeight < 90;
+    var el = document.createElement('div');
+    if (m.sys) {
+      el.className = 'sys'; el.textContent = clean(m.text, 120);
+    } else {
+      var mine = m.cid === clientId;
+      el.className = 'row ' + (mine ? 'mine' : 'theirs');
+      if (!mine) {
+        var n = document.createElement('div'); n.className = 'who'; n.textContent = clean(m.name, 24) || 'Someone';
+        n.style.color = 'hsl(' + hue(String(m.cid)) + ' 60% var(--nl))'; el.appendChild(n);
+      }
+      var b = document.createElement('div'); b.className = 'bubble'; b.textContent = clean(m.text, 400); el.appendChild(b);
+      var t = document.createElement('div'); t.className = 'time';
+      t.textContent = new Date(m.ts || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      el.appendChild(t);
+    }
+    box.appendChild(el);
+    if (near || m.cid === clientId) box.scrollTop = box.scrollHeight;
+  }
+  function addMessage(m) {
+    if (!m || !m.id || seen[m.id]) return;
+    seen[m.id] = 1;
+    history.push(m); if (history.length > 60) history.shift();
+    render(m);
+  }
+  $('myname').textContent = name;
+
+  /* ---------- host side ---------- */
+  function sendTo(conn, data) { try { if (conn.open) conn.send(data); } catch (e) {} }
+  function broadcast(data, except) { recs.forEach(function (r) { if (r !== except && r.cid) sendTo(r.conn, data); }); }
+  function hostPublish(m) { addMessage(m); broadcast({ t: 'msg', m: m }); }
+  function hostSys(text) { hostPublish({ id: rand() + Date.now().toString(36), sys: true, text: text, ts: Date.now() }); }
+  function pushRoster() { updateOnline(); broadcast({ t: 'roster', roster: roster }); }
+
+  function becomeHost() {
+    role = 'host'; attempt = 0; recs = [];
+    roster = [{ cid: clientId, name: name }];
+    updateOnline(); showEmpty();
+    setStatus('You opened the room. Others join through the same link. Keep this tab open so it keeps running.', 8000);
+    peer.on('connection', function (c) {
+      var rec = { conn: c, cid: null, name: 'Someone', last: 0, gone: false };
+      recs.push(rec);
+      c.on('data', function (d) { hostOnData(rec, d); });
+      c.on('close', function () { hostDrop(rec); });
+      c.on('error', function () { hostDrop(rec); });
+    });
+    peer.on('disconnected', function () { try { peer.reconnect(); } catch (e) {} });
+  }
+  function hostOnData(rec, d) {
+    if (!d || typeof d !== 'object') return;
+    var now = Date.now();
+    if (d.t === 'hello' && !rec.cid) {
+      rec.cid = clean(d.cid, 24) || rand(); rec.name = clean(d.name, 24) || 'Someone';
+      roster.push({ cid: rec.cid, name: rec.name });
+      sendTo(rec.conn, { t: 'welcome', history: history, roster: roster });
+      pushRoster();
+      hostSys(rec.name + ' joined');
+    } else if (d.t === 'msg' && rec.cid) {
+      if (now - rec.last < 400) return; rec.last = now;
+      var text = clean(d.text, 400); if (!text) return;
+      hostPublish({ id: rand() + now.toString(36), cid: rec.cid, name: rec.name, text: text, ts: now });
+    } else if (d.t === 'name' && rec.cid) {
+      var nn = clean(d.name, 24); if (!nn) return;
+      var old = rec.name; rec.name = nn;
+      roster.forEach(function (r) { if (r.cid === rec.cid) r.name = nn; });
+      pushRoster(); hostSys(old + ' is now ' + nn);
+    }
+  }
+  function hostDrop(rec) {
+    if (rec.gone) return; rec.gone = true;
+    recs = recs.filter(function (r) { return r !== rec; });
+    if (!rec.cid) return;
+    roster = roster.filter(function (r) { return r.cid !== rec.cid; });
+    pushRoster(); hostSys(rec.name + ' left');
+  }
+
+  /* ---------- guest side ---------- */
+  function onGuestData(d) {
+    if (!d || typeof d !== 'object') return;
+    if (d.t === 'welcome') {
+      (d.history || []).forEach(addMessage);
+      roster = Array.isArray(d.roster) ? d.roster : []; updateOnline();
+      if (!$('msgs').children.length) showEmpty();
+    } else if (d.t === 'msg') { addMessage(d.m); }
+    else if (d.t === 'roster') { roster = Array.isArray(d.roster) ? d.roster : []; updateOnline(); }
+  }
+  function hostLost() {
+    role = null; roster = []; updateOnline();
+    kill(peer);
+    setStatus('The person running the room left. Reconnecting…');
+    setTimeout(start, 400 + Math.random() * 2200);
+  }
+
+  /* ---------- connecting ---------- */
+  function kill(p) { try { if (p) p.destroy(); } catch (e) {} if (p === peer) peer = null; }
+  function retry() {
+    attempt++; role = null; updateOnline();
+    setStatus('Reconnecting…');
+    setTimeout(start, Math.min(1000 * attempt, 6000) + Math.random() * 1000);
+  }
+  function start() { kill(peer); role = null; guestConn = null; updateOnline(); tryHost(); }
+
+  function tryHost() {
+    var p = new Peer(ROOM_ID); peer = p;
+    var settled = false;
+    var timer = setTimeout(function () { if (!settled) { settled = true; kill(p); retry(); } }, 9000);
+    p.on('open', function () { if (settled) return; settled = true; clearTimeout(timer); becomeHost(); });
+    p.on('error', function (e) {
+      if (settled) return; settled = true; clearTimeout(timer); kill(p);
+      if (e && e.type === 'unavailable-id') joinAsGuest(); else retry();
+    });
+  }
+  function joinAsGuest() {
+    var p = new Peer(); peer = p;
+    var settled = false;
+    var timer = setTimeout(function () { if (!settled) { settled = true; kill(p); retry(); } }, 9000);
+    p.on('open', function () {
+      var c = p.connect(ROOM_ID, { reliable: true }); guestConn = c;
+      c.on('open', function () {
+        if (settled) return; settled = true; clearTimeout(timer);
+        role = 'guest'; attempt = 0;
+        c.send({ t: 'hello', cid: clientId, name: name });
+        setStatus(''); updateOnline();
+      });
+      c.on('data', onGuestData);
+      c.on('close', function () { if (role === 'guest' && guestConn === c) hostLost(); });
+      c.on('error', function () {
+        if (!settled) { settled = true; clearTimeout(timer); kill(p); retry(); }
+      });
+    });
+    p.on('error', function (e) {
+      if (settled) return; settled = true; clearTimeout(timer); kill(p);
+      if (e && e.type === 'peer-unavailable') tryHost(); else retry();
+    });
+  }
+
+  /* ---------- sending ---------- */
+  function sendText(text) {
+    text = clean(text, 400); if (!text) return false;
+    if (role === 'host') {
+      hostPublish({ id: rand() + Date.now().toString(36), cid: clientId, name: name, text: text, ts: Date.now() });
+      return true;
+    }
+    if (role === 'guest' && guestConn && guestConn.open) { guestConn.send({ t: 'msg', text: text }); return true; }
+    toast('Not connected yet. One moment.'); return false;
+  }
+  $('composer').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var ta = $('text'), v = ta.value;
+    if (!v.trim()) return;
+    if (sendText(v)) { ta.value = ''; ta.style.height = ''; }
+  });
+  $('text').addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('composer').requestSubmit(); } });
+  $('text').addEventListener('input', function () { this.style.height = 'auto'; this.style.height = Math.min(this.scrollHeight, 120) + 'px'; });
+  $('ice').addEventListener('click', function () { sendText('💭 ' + pick(STARTERS)); });
+  $('roll').addEventListener('click', function () { sendText('🎲 ' + name + ' rolled a ' + (1 + Math.floor(Math.random() * 6))); });
+  $('shuffle').addEventListener('click', function () {
+    var old = name; name = randomName();
+    if (name === old) name = randomName();
+    store('wm_fun_name', name); $('myname').textContent = name;
+    if (role === 'host') {
+      roster.forEach(function (r) { if (r.cid === clientId) r.name = name; });
+      pushRoster(); hostSys(old + ' is now ' + name);
+    } else if (role === 'guest' && guestConn && guestConn.open) {
+      guestConn.send({ t: 'name', name: name });
+    }
+  });
+  window.addEventListener('pagehide', function () { try { if (peer) peer.destroy(); } catch (e) {} });
+
+  /* ---------- go ---------- */
+  updateOnline();
+  if (typeof Peer === 'undefined') {
+    setStatus('Could not load the chat connection. Check your internet and reload the page.');
+    $('online').textContent = 'Offline';
+  } else {
+    start();
+  }
+})();
+</script>
+</body>
+</html>
